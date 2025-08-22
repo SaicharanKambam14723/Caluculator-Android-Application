@@ -3,19 +3,18 @@ package com.example.calculator
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalAnimationApi
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,22 +28,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonColors
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CardElevation
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -56,24 +44,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.modifier.modifierLocalMapOf
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.graphics.toColorInt
 import com.example.calculator.ui.theme.CalculatorTheme
 import kotlin.math.abs
 import kotlin.math.sqrt
-import com.example.calculator.parseAddOrSubtract
 import kotlin.math.cos
 import kotlin.math.ln
-import kotlin.math.pow
 import kotlin.math.sin
 import kotlin.math.tan
 
@@ -90,21 +75,22 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-data class CaluculatorHistory(
+class CaluculatorHistory(
     val expression: String,
     val result: String
 )
 
 
-@OptIn(ExperimentalAnimationApi :: class)
+@OptIn(ExperimentalAnimationApi :: class, ExperimentalFoundationApi::class)
 @Composable
 fun Calculator(modifier: Modifier = Modifier) {
 
-    var currExpression by remember { mutableStateOf("yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy") }
+    var currExpression by remember { mutableStateOf("") }
     var displayValue by remember { mutableStateOf("0") }
     var history by remember { mutableStateOf(listOf<CaluculatorHistory>()) }
     var showHistory by remember { mutableStateOf(false) }
     var justComputed by remember { mutableStateOf(false) }
+
 
     fun getLastNum(str: String): String {
         val regex = Regex("[+\\-*/^()]")
@@ -296,11 +282,14 @@ fun Calculator(modifier: Modifier = Modifier) {
             .background(
                 Brush.horizontalGradient(
                     colors = listOf(
+                        Color.White,
                         Color.LightGray,
                         Color.White,
-                        Color.LightGray
                     )
                 )
+            )
+            .then(
+                if (showHistory) Modifier.blur(8.dp) else Modifier
             )
     ) {
         Column(
@@ -309,6 +298,7 @@ fun Calculator(modifier: Modifier = Modifier) {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -322,13 +312,17 @@ fun Calculator(modifier: Modifier = Modifier) {
                         .fillMaxHeight()
                         .padding(end = 10.dp)
                         .background(
-                            Color(0xFFF1F5F9),
+                            Color.Transparent,
                             RoundedCornerShape(12.dp)
+                        )
+                        .border(
+                            width = 0.5.dp,
+                            color = Color.DarkGray.copy(alpha = 0.3f),
+                            shape = RoundedCornerShape(12.dp)
                         ),
-
                     ) {
                     Text(
-                        text = if(currExpression.length > 25) currExpression.take(25) + "...." else currExpression,
+                        text = if(currExpression.length > 25) "...." + currExpression.takeLast(25)  else currExpression,
                         color = Color.DarkGray.copy(alpha = 0.9f),
                         fontSize = 20.sp,
                         modifier = Modifier
@@ -349,6 +343,11 @@ fun Calculator(modifier: Modifier = Modifier) {
                             Color(0xFFF1F5F9),
                             RoundedCornerShape(12.dp)
                         )
+                        .border(
+                            width = 0.5.dp,
+                            color = Color.DarkGray.copy(alpha = 0.3f),
+                            shape = RoundedCornerShape(12.dp)
+                        )
                 ) {
                     Icon(
                         painter = if(showHistory) painterResource(id = R.drawable.history_0) else painterResource(id = R.drawable.history_1),
@@ -359,130 +358,24 @@ fun Calculator(modifier: Modifier = Modifier) {
                 }
             }
 
-            val scrollState = rememberScrollState()
 
-            AnimatedVisibility(
-                visible = showHistory,
-                enter = slideInVertically(
-                    initialOffsetY = { -it },
-                    animationSpec = tween(400)
-                ),
-                exit = slideOutVertically(
-                    targetOffsetY = { -it },
-                    animationSpec = tween(400)
-                ),
-            ) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFF1e1e2e).copy(alpha = 0.95f)
-                    ),
-                    elevation = CardDefaults.cardElevation(
-                        defaultElevation = 8.dp
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .padding(16.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxSize(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = "Caluculation History",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF64ffda)
-                            )
-                            if(history.isNotEmpty()) {
-                                TextButton(
-                                    onClick = {
-                                        clearHistory()
-                                    }
-                                ) {
-                                    Text(
-                                        text = "Clear History",
-                                        color = Color(0xFFff6b6b),
-                                        fontSize = 12.sp
-                                    )
-                                }
-                            }
-                        }
-                        if(history.isEmpty()) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "No Caluculation History",
-                                    textAlign = TextAlign.Center,
-                                    fontSize = 14.sp,
-                                    color = Color.Gray
-                                )
-                            }
-                        } else {
-                            LazyColumn(
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                items(history.takeLast(10).reversed()) { item->
-                                    Card(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable {
-                                                displayValue = item.result
-                                                currExpression = item.expression
-                                                justComputed = true
-                                                showHistory = false
-                                            },
-                                        shape = RoundedCornerShape(8.dp),
-                                        colors = CardDefaults.cardColors(
-                                            containerColor = Color(0xFF2d2d44).copy(alpha = 0.7f)
-                                        )
-                                    ) {
-                                        Column(
-                                            modifier = Modifier
-                                                .padding(12.dp)
-                                        ) {
-                                            Text(
-                                                text = item.expression,
-                                                fontSize = 12.sp,
-                                                color = Color(0xFFa0a0a0),
-                                                textAlign = TextAlign.End,
-                                                modifier = Modifier.fillMaxWidth()
-                                            )
-                                            Text(
-                                                text = "= ${item.result}",
-                                                fontSize = 14.sp,
-                                                color = Color.White,
-                                                textAlign = TextAlign.End,
-                                                modifier = Modifier.fillMaxWidth()
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
 
             Spacer(
                 modifier = Modifier
-                    .height(8.dp)
+                    .height(12.dp)
             )
 
             Card(
                 modifier = Modifier
-                    .fillMaxWidth(),
+                    .fillMaxWidth()
+                    .border(
+                        width = 1.5.dp,
+                        color = Color.DarkGray.copy(alpha = 0.3f),
+                        shape = RoundedCornerShape(20.dp)
+                    ),
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(
-                    Color.Black.copy(alpha = 0.8f)
+                    Color("#f8fafc".toColorInt())
                 ),
                 elevation = CardDefaults.cardElevation(
                     defaultElevation = 12.dp
@@ -491,15 +384,16 @@ fun Calculator(modifier: Modifier = Modifier) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(120.dp)
-                        .padding(24.dp),
+                        .height(130.dp)
+                        .padding(26.dp),
                     contentAlignment = Alignment.CenterEnd
                 ) {
                     Text(
-                        text = displayValue,
+                        text = if(displayValue.length > 10) "..." + displayValue.takeLast(10) else displayValue,
                         fontSize = 48.sp,
                         fontWeight = FontWeight.Light,
-                        color = Color.White,
+                        fontFamily = FontFamily.Serif,
+                        color = Color.Black,
                         textAlign = TextAlign.End,
                         maxLines = 1
                     )
@@ -508,20 +402,20 @@ fun Calculator(modifier: Modifier = Modifier) {
 
             Spacer(
                 modifier = Modifier
-                    .height(12.dp)
+                    .height(8.dp)
             )
 
             Column(
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     CalcButton(
                         text = "C",
                         modifier = Modifier.weight(1f),
-                        backgroundColor = Color(0xFFff6b6b),
-                        textColor = Color.White
+                        backgroundColor = Color(0xFFFEE2E2),
+                        textColor = Color(0xFFDC2626)
                     ) { 
                         clear()
                     }
@@ -529,8 +423,8 @@ fun Calculator(modifier: Modifier = Modifier) {
                     CalcButton(
                         text = "⌫",
                         modifier = Modifier.weight(1f),
-                        backgroundColor = Color(0xFFffa726),
-                        textColor = Color.White
+                        backgroundColor = Color(0xFFF3F4F6),
+                        textColor = Color(0xFF374151)
                     ) {
                         backspace()
                     }
@@ -538,8 +432,8 @@ fun Calculator(modifier: Modifier = Modifier) {
                     CalcButton(
                         text = "( )",
                         modifier = Modifier.weight(1f),
-                        backgroundColor = Color(0xFF6c5ce7),
-                        textColor = Color.White
+                        backgroundColor = Color(0xFFF3F4F6),
+                        textColor = Color(0xFF374151)
                     ) {
                         val open = currExpression.count {
                             it == '('
@@ -558,7 +452,7 @@ fun Calculator(modifier: Modifier = Modifier) {
                     CalcButton(
                         text = "÷",
                         modifier = Modifier.weight(1f),
-                        backgroundColor = Color(0xFF00d2d3),
+                        backgroundColor = Color(0xFF3B82F6),
                         textColor = Color.White
                     ) {
                         input("÷")
@@ -571,8 +465,8 @@ fun Calculator(modifier: Modifier = Modifier) {
                     CalcButton(
                         text = "sin",
                         modifier = Modifier.weight(1f),
-                        backgroundColor = Color(0xFF26de81),
-                        textColor = Color.White
+                        backgroundColor = Color(0xFFF3F4F6),
+                        textColor = Color(0xFF374151)
                     ) {
                         applyFun("sin")
                     }
@@ -580,8 +474,8 @@ fun Calculator(modifier: Modifier = Modifier) {
                     CalcButton(
                         text = "cos",
                         modifier = Modifier.weight(1f),
-                        backgroundColor = Color(0xFF26de81),
-                        textColor = Color.White
+                        backgroundColor = Color(0xFFF3F4F6),
+                        textColor = Color(0xFF374151)
                     ) {
                         applyFun("cos")
                     }
@@ -589,8 +483,8 @@ fun Calculator(modifier: Modifier = Modifier) {
                     CalcButton(
                         text = "tan",
                         modifier = Modifier.weight(1f),
-                        backgroundColor = Color(0xFF26de81),
-                        textColor = Color.White
+                        backgroundColor = Color(0xFFF3F4F6),
+                        textColor = Color(0xFF374151)
                     ) {
                         applyFun("tan")
                     }
@@ -598,7 +492,7 @@ fun Calculator(modifier: Modifier = Modifier) {
                     CalcButton(
                         text = "%",
                         modifier = Modifier.weight(1f),
-                        backgroundColor = Color(0xFF00d2d3),
+                        backgroundColor = Color(0xFF3B82F6),
                         textColor = Color.White
                     ) {
                         applyFun("%")
@@ -611,8 +505,8 @@ fun Calculator(modifier: Modifier = Modifier) {
                     CalcButton(
                         text = "√",
                         modifier = Modifier.weight(1f),
-                        backgroundColor = Color(0xFF26de81),
-                        textColor = Color.White
+                        backgroundColor = Color(0xFFF3F4F6),
+                        textColor = Color(0xFF374151)
                     ) {
                         applyFun("√")
                     }
@@ -620,8 +514,8 @@ fun Calculator(modifier: Modifier = Modifier) {
                     CalcButton(
                         text = "x²",
                         modifier = Modifier.weight(1f),
-                        backgroundColor = Color(0xFF26de81),
-                        textColor = Color.White
+                        backgroundColor = Color(0xFFF3F4F6),
+                        textColor = Color(0xFF374151)
                     ) {
                         applyFun("x²")
                     }
@@ -629,8 +523,8 @@ fun Calculator(modifier: Modifier = Modifier) {
                     CalcButton(
                         text = "ln",
                         modifier = Modifier.weight(1f),
-                        backgroundColor = Color(0xFF26de81),
-                        textColor = Color.White
+                        backgroundColor = Color(0xFFF3F4F6),
+                        textColor = Color(0xFF374151)
                     ) {
                         applyFun("ln")
                     }
@@ -638,7 +532,7 @@ fun Calculator(modifier: Modifier = Modifier) {
                     CalcButton(
                         text = "pow",
                         modifier = Modifier.weight(1f),
-                        backgroundColor = Color(0xFF00d2d3),
+                        backgroundColor = Color(0xFF3B82F6),
                         textColor = Color.White
                     ) {
                         input("^")
@@ -650,9 +544,15 @@ fun Calculator(modifier: Modifier = Modifier) {
                 ) {
                     CalcButton(
                         text = "7",
-                        modifier = Modifier.weight(1f),
-                        backgroundColor = Color(0xFF4a5568),
-                        textColor = Color.White
+                        modifier = Modifier
+                            .weight(1f)
+                            .border(
+                                width = 3.dp,
+                                color = Color(0xFFE5E7EB),
+                                shape = RoundedCornerShape(16.dp)
+                            ),
+                        backgroundColor = Color(0xFFFFFFFF),
+                        textColor = Color(0xFF1F2937)
                     ) {
                         input("7")
                     }
@@ -660,8 +560,8 @@ fun Calculator(modifier: Modifier = Modifier) {
                     CalcButton(
                         text = "8",
                         modifier = Modifier.weight(1f),
-                        backgroundColor = Color(0xFF4a5568),
-                        textColor = Color.White
+                        backgroundColor = Color(0xFFFFFFFF),
+                        textColor = Color(0xFF1F2937)
                     ) {
                         input("8")
                     }
@@ -669,8 +569,8 @@ fun Calculator(modifier: Modifier = Modifier) {
                     CalcButton(
                         text = "9",
                         modifier = Modifier.weight(1f),
-                        backgroundColor = Color(0xFF4a5568),
-                        textColor = Color.White
+                        backgroundColor = Color(0xFFFFFFFF),
+                        textColor = Color(0xFF1F2937)
                     ) {
                         input("9")
                     }
@@ -678,7 +578,7 @@ fun Calculator(modifier: Modifier = Modifier) {
                     CalcButton(
                         text = "×",
                         modifier = Modifier.weight(1f),
-                        backgroundColor = Color(0xFF00d2d3),
+                        backgroundColor = Color(0xFF3B82F6),
                         textColor = Color.White
                     ) {
                         input("×")
@@ -691,8 +591,8 @@ fun Calculator(modifier: Modifier = Modifier) {
                     CalcButton(
                         text = "4",
                         modifier = Modifier.weight(1f),
-                        backgroundColor = Color(0xFF4a5568),
-                        textColor = Color.White
+                        backgroundColor = Color(0xFFFFFFFF),
+                        textColor = Color(0xFF1F2937)
                     ) {
                         input("4")
                     }
@@ -700,8 +600,8 @@ fun Calculator(modifier: Modifier = Modifier) {
                     CalcButton(
                         text = "5",
                         modifier = Modifier.weight(1f),
-                        backgroundColor = Color(0xFF4a5568),
-                        textColor = Color.White
+                        backgroundColor = Color(0xFFFFFFFF),
+                        textColor = Color(0xFF1F2937)
                     ) {
                         input("5")
                     }
@@ -709,8 +609,8 @@ fun Calculator(modifier: Modifier = Modifier) {
                     CalcButton(
                         text = "6",
                         modifier = Modifier.weight(1f),
-                        backgroundColor = Color(0xFF4a5568),
-                        textColor = Color.White
+                        backgroundColor = Color(0xFFFFFFFF),
+                        textColor = Color(0xFF1F2937)
                     ) {
                         input("6")
                     }
@@ -718,7 +618,7 @@ fun Calculator(modifier: Modifier = Modifier) {
                     CalcButton(
                         text = "-",
                         modifier = Modifier.weight(1f),
-                        backgroundColor = Color(0xFF00d2d3),
+                        backgroundColor = Color(0xFF3B82F6),
                         textColor = Color.White
                     ) {
                         input("-")
@@ -731,8 +631,8 @@ fun Calculator(modifier: Modifier = Modifier) {
                     CalcButton(
                         text = "1",
                         modifier = Modifier.weight(1f),
-                        backgroundColor = Color(0xFF4a5568),
-                        textColor = Color.White
+                        backgroundColor = Color(0xFFFFFFFF),
+                        textColor = Color(0xFF1F2937)
                     ) {
                         input("1")
                     }
@@ -740,8 +640,8 @@ fun Calculator(modifier: Modifier = Modifier) {
                     CalcButton(
                         text = "2",
                         modifier = Modifier.weight(1f),
-                        backgroundColor = Color(0xFF4a5568),
-                        textColor = Color.White
+                        backgroundColor = Color(0xFFFFFFFF),
+                        textColor = Color(0xFF1F2937)
                     ) {
                         input("2")
                     }
@@ -749,8 +649,8 @@ fun Calculator(modifier: Modifier = Modifier) {
                     CalcButton(
                         text = "3",
                         modifier = Modifier.weight(1f),
-                        backgroundColor = Color(0xFF4a5568),
-                        textColor = Color.White
+                        backgroundColor = Color(0xFFFFFFFF),
+                        textColor = Color(0xFF1F2937)
                     ) {
                         input("3")
                     }
@@ -758,7 +658,7 @@ fun Calculator(modifier: Modifier = Modifier) {
                     CalcButton(
                         text = "+",
                         modifier = Modifier.weight(1f),
-                        backgroundColor = Color(0xFF00d2d3),
+                        backgroundColor = Color(0xFF3B82F6),
                         textColor = Color.White
                     ) {
                         input("+")
@@ -771,8 +671,8 @@ fun Calculator(modifier: Modifier = Modifier) {
                     CalcButton(
                         text = ".",
                         modifier = Modifier.weight(1f),
-                        backgroundColor = Color(0xFF4a5568),
-                        textColor = Color.White
+                        backgroundColor = Color(0xFFFFFFFF),
+                        textColor = Color(0xFF1F2937)
                     ) {
                         input(".")
                     }
@@ -780,8 +680,8 @@ fun Calculator(modifier: Modifier = Modifier) {
                     CalcButton(
                         text = "0",
                         modifier = Modifier.weight(1f),
-                        backgroundColor = Color(0xFF4a5568),
-                        textColor = Color.White
+                        backgroundColor = Color(0xFFFFFFFF),
+                        textColor = Color(0xFF1F2937)
                     ) {
                         input("0")
                     }
@@ -789,8 +689,8 @@ fun Calculator(modifier: Modifier = Modifier) {
                     CalcButton(
                         text = "±",
                         modifier = Modifier.weight(1f),
-                        backgroundColor = Color(0xFF6c5ce7),
-                        textColor = Color.White
+                        backgroundColor = Color(0xFFF3F4F6),
+                        textColor = Color(0xFF374151)
                     ) {
                         applyFun("+/-")
                     }
@@ -798,10 +698,207 @@ fun Calculator(modifier: Modifier = Modifier) {
                     CalcButton(
                         text = "=",
                         modifier = Modifier.weight(1f),
-                        backgroundColor = Color(0xFF55a3ff),
+                        backgroundColor = Color(0xFF3B82F6),
                         textColor = Color.White
                     ) {
                         caluculate()
+                    }
+                }
+            }
+        }
+    }
+
+    AnimatedVisibility(
+        visible = showHistory,
+        enter = fadeIn(
+            animationSpec = tween(300)
+        ),
+        exit = fadeOut(
+            animationSpec = tween(300)
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.5f))
+                .clickable(
+                    interactionSource = remember {
+                        MutableInteractionSource()
+                    },
+                    indication = null
+                ) {
+                    showHistory = true
+                }
+        )
+    }
+
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(400.dp)
+    ) {
+        AnimatedVisibility(
+            visible = showHistory,
+            enter = slideInVertically(
+                initialOffsetY = {-it},
+                animationSpec = tween(400)
+            ) + fadeIn(
+                animationSpec = tween(400)
+            ),
+            exit = slideOutVertically(
+                targetOffsetY = {-it},
+                animationSpec = tween(400)
+            ) + fadeOut(
+                animationSpec = tween(400)
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(380.dp)
+        ) {
+            Card(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(20.dp)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+
+                    },
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color.White
+                ),
+                elevation = CardDefaults.cardElevation(
+                    defaultElevation = 12.dp
+                )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .fillMaxSize()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(45.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Caluculation History",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.W400,
+                            color = Color.Black,
+                            modifier = Modifier
+                                .padding(start = 10.dp)
+                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if(history.isNotEmpty()) {
+                                TextButton(
+                                    onClick = {
+                                        clearHistory()
+                                    }
+                                ) {
+                                    Text(
+                                        text = "Clear",
+                                        color = Color(0xFF4285F4),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+                            IconButton(
+                                onClick = {
+                                    showHistory = !showHistory
+                                },
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .background(
+                                        Color(0xFFF1F5F9),
+                                        RoundedCornerShape(12.dp)
+                                    )
+                                    .border(
+                                        width = 0.5.dp,
+                                        color = Color.DarkGray.copy(alpha = 0.3f),
+                                        shape = RoundedCornerShape(12.dp)
+                                    )
+                            ) {
+                                Icon(
+                                    painter = if(showHistory) painterResource(id = R.drawable.history_0) else painterResource(id = R.drawable.history_1),
+                                    contentDescription = null,
+                                    tint = Color(0xFF64748B),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+                    Spacer(
+                        modifier = Modifier
+                            .height(10.dp)
+                    )
+                    if(history.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+
+                        }
+                    }
+                    else {
+                        LazyColumn(
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier
+                                .fillMaxSize()
+                        ) {
+                            items(history.takeLast(20).reversed()) {item ->
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .animateItemPlacement()
+                                        .clickable {
+                                            currExpression = item.expression
+                                            displayValue = item.result
+                                            justComputed = true
+                                            showHistory = false
+                                        },
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = Color(0xFFF8F9FA)
+                                    ),
+                                    elevation = CardDefaults.cardElevation(
+                                        defaultElevation = 2.dp
+                                    )
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .padding(5.dp)
+                                    ) {
+                                        Text(
+                                            text = item.expression,
+                                            fontSize = 14.sp,
+                                            color = Color(0xFF666666),
+                                            textAlign = TextAlign.End,
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                        Spacer(
+                                            modifier = Modifier.height(1.dp)
+                                        )
+                                        Text(
+                                            text = "= ${item.result}",
+                                            fontSize = 14.sp,
+                                            color = Color(0xFF666666),
+                                            textAlign = TextAlign.End,
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
